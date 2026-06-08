@@ -1,43 +1,35 @@
-# v2
 import os
 import anthropic
 from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
-claude = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+claude_client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+history = {}
 
-conversation_history = {}
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.chat_id
-    user_message = update.message.text
-    
-    if user_id not in conversation_history:
-        conversation_history[user_id] = []
-    
-    conversation_history[user_id].append({"role": "user", "content": user_message})
-    await context.bot.send_chat_action(chat_id=user_id, action="typing")
-    
-    response = claude.messages.create(
+async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.message.chat_id
+    msg = update.message.text
+    if uid not in history:
+        history[uid] = []
+    history[uid].append({"role": "user", "content": msg})
+    await context.bot.send_chat_action(chat_id=uid, action="typing")
+    res = claude_client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1024,
-        system="You are a helpful assistant. Respond in the same language the user writes in.",
-        messages=conversation_history[user_id]
+        system="You are a helpful assistant. Always respond in the same language the user uses.",
+        messages=history[uid]
     )
-    
-    reply = response.content[0].text
-    conversation_history[user_id].append({"role": "assistant", "content": reply})
+    reply = res.content[0].text
+    history[uid].append({"role": "assistant", "content": reply})
     await update.message.reply_text(reply)
 
-async def handle_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.chat_id
-    conversation_history[user_id] = []
-    await update.message.reply_text("대화 초기화! 😊")
+async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    history[update.message.chat_id] = []
+    await update.message.reply_text("초기화됐어요 😊")
 
-if __name__ == "__main__":
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(CommandHandler("reset", handle_reset))
-    print("봇 시작됨!")
-    app.run_polling()
+bot = Application.builder().token(TELEGRAM_TOKEN).build()
+bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat))
+bot.add_handler(CommandHandler("reset", reset))
+print("Starting bot...")
+bot.run_polling()
