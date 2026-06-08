@@ -19,7 +19,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=user_id, action="typing")
     
     response = claude.messages.create(
-        model="claude-opus-4-5",
+        model="claude-sonnet-4-20250514",
         max_tokens=1024,
         system="You are a helpful assistant. Respond in the same language the user writes in.",
         messages=conversation_history[user_id]
@@ -32,7 +32,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.chat_id
     conversation_history[user_id] = []
-    await update.message.reply_text("대화 기록 초기화! 새로 시작해요 😊")
+    await update.message.reply_text("대화 초기화! 😊")
 
 app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
